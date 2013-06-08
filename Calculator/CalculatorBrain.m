@@ -9,61 +9,97 @@
 #import "CalculatorBrain.h"
 
 @interface CalculatorBrain()
-
-@property (nonatomic, strong) NSMutableArray* operandStack;
+@property (nonatomic, strong) NSMutableArray* programStack; // not just operands.
 
 @end
 
 @implementation CalculatorBrain
 
-@synthesize operandStack = _operandStack;
+@synthesize programStack = _programStack;
+
+// getter only for the program - satisfy the read only
+- (id)program
+{
+    // we return a copy - don't allow internal state to be exposed. note this is immutable
+    return [self.programStack copy];
+}
+
+//description
++ (NSString*)descriptionOfProgram:(id)program
+{
+    return @"Hello world";
+}
+
++ (double)popOperandOffStack:(NSMutableArray*)stack
+{
+    double result = 0;
+    
+    // we are very nil safe :)
+    id topOfStack = [stack lastObject]; // call the message "lastObject". why id? it could be a number or a string. we don't know.
+    if (topOfStack) [stack removeLastObject]; // call the message "removeLastObject" - so we remove an object only if it exists.
+    
+    // do different stuff depending on the type of object popped off the stack
+    if ([topOfStack isKindOfClass:[NSNumber class]]) {
+        result = [topOfStack doubleValue]; // convert to primitve
+    }
+    else if ([topOfStack isKindOfClass:[NSString class]]) {
+        NSString* operation = topOfStack;
+        double rightHand = [self popOperandOffStack:stack];
+        double leftHand = [self popOperandOffStack:stack];
+        
+        if ([operation isEqualToString:@"+"]) {
+            result = leftHand + rightHand;
+        } else if ([operation isEqualToString:@"*"]) {
+            result = leftHand * rightHand;
+        } else if ([operation isEqualToString:@"-"]) {
+            result = leftHand - rightHand;
+        } else if ([operation isEqualToString:@"/"]) {
+            if (rightHand) result = leftHand / rightHand; // division by zero check
+        }
+    }
+    
+    // because there are only checks for numbers and strings, other objects will return nil / 0, so the universe is safe.
+    // hooray!
+    return result;
+}
+
++ (double)runProgram:(id)program
+{
+    // passed as an immutable array. we need to transform it to something mutable.
+    // also, we need to use introspection to protect against unknown objects being passed in
+    // (check if it is an array)
+    
+    NSMutableArray* stack;
+    if ([program isKindOfClass:[NSArray class]]) {
+        stack = [program mutableCopy]; // i make a mutable copy of the array passed in. note that it doesn't complain of typecasting problems
+    }
+    
+    return [self popOperandOffStack:stack]; // call the recursion. if it is not an array this will just return nil.
+}
+
 
 // custom getter to avoid null issues
-- (NSMutableArray *)operandStack
+- (NSMutableArray *)programStack
 {
     // lazy instantiation / initialization. Note that it is "nil" and not "null"
-    if (_operandStack == nil) _operandStack = [[NSMutableArray alloc] init];
+    if (_programStack == nil) _programStack = [[NSMutableArray alloc] init];
     
-    return _operandStack;
+    return _programStack;
 }
 
 - (void)pushOperand:(double)operand
 {
-    // convert the double to an "object"
-    NSNumber* operandObject = [NSNumber numberWithDouble:operand];
-    
-    // stuff it into the stack
-    [self.operandStack addObject:operandObject];
-}
-
-- (double)popOperand
-{
-    // get the last object
-    NSNumber* operandObject = [self.operandStack lastObject];
-    
-    // remove last object
-    if (operandObject) [self.operandStack removeLastObject]; // removeLastObject won't crash if it is empty.
-    return [operandObject doubleValue];
+    [self.programStack addObject:[NSNumber numberWithDouble:operand]];
 }
 
 - (double)performOperation:(NSString*)operation
 {
-    double result = 0;
+    // i will push the operation into the stack
+    [self.programStack addObject:operation];
     
-    if ([operation isEqualToString:@"+"]) {
-        result = [self popOperand] + [self popOperand];
-    } else if ([operation isEqualToString:@"-"]) {
-        result = [self popOperand] - [self popOperand];
-    } else if ([@"*" isEqualToString:operation]) { // this is special - reverse notation
-        result = [self popOperand] * [self popOperand];
-    } else if ([operation isEqualToString:@"/"]) {
-        result = [self popOperand] / [self popOperand];
-    }
-    
-    [self pushOperand:result];
-    
-    // calculate result
-    return result;
+    // we let the program run the operation
+    return [CalculatorBrain runProgram:self.program];
+
 }
 
 @end

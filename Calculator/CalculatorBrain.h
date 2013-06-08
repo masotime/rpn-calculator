@@ -13,4 +13,10 @@
 - (void)pushOperand:(double)operand;
 - (double)performOperation:(NSString*)operation;
 
+// this is readonly - can only "get" the program
+@property (readonly) id program; // avoid introducing a whole other class - so just generic id. "future compatibility"
+
++ (double) runProgram:(id)program; // "static" method. return double if last item in stack is operation. Don't need an instance of CalculatorBrain to run the program.
++ (NSString*) descriptionOfProgram:(id)program;
+
 @end
